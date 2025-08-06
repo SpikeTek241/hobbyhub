@@ -37,7 +37,7 @@ export default function Home() {
   return (
     <div className="home-container">
       <div className="home-header">
-        <h1 className="app-title">OctaneNexus</h1>
+        <h1 className="app-title">Welcome To OctaneNexus</h1>
 
         <div className="nav-controls">
           <input
