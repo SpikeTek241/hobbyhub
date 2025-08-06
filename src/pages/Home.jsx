@@ -1,21 +1,27 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import '../styles/Home.css';
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
-  const [orderBy, setOrderBy] = useState('created_at');
-  const [search, setSearch] = useState('');
+  const [sortOption, setSortOption] = useState('newest');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchPosts();
-  }, [orderBy]);
+  }, [sortOption]);
 
   async function fetchPosts() {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order(orderBy, { ascending: false });
+    let query = supabase.from('posts').select('*');
+
+    if (sortOption === 'newest') {
+      query = query.order('created_at', { ascending: false });
+    } else if (sortOption === 'popular') {
+      query = query.order('upvotes', { ascending: false });
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching posts:', error.message);
@@ -24,80 +30,49 @@ export default function Home() {
     }
   }
 
-  async function handleUpvote(id, currentUpvotes) {
-    const { error } = await supabase
-    .from('posts')
-    .update({ upvotes : currentlyUpvotes + 1 })
-    .eq('id', id)
-
-    if (error) {
-      console.error('Upvote failed:', error.message);
-    } else {
-      fetchPosts();
-    }
-  }
-
-  const filteredPosts = posts.filter((post) =>
-    post.title.toLowerCase().includes(search.toLowerCase())
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-4">
-        <input
-          type="text"
-          placeholder="Search by title..."
-          className="border px-2 py-1 rounded bg-[#1e1e1e] text-white"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={orderBy}
-          onChange={(e) => setOrderBy(e.target.value)}
-          className="border px-2 py-1 rounded bg-[#1e1e1e] text-white"
-        >
-          <option value="created_at">Newest</option>
-          <option value="upvotes">Most Upvoted</option>
-        </select>
+    <div className="home-container">
+      <div className="home-header">
+        <h1 className="app-title">OctaneNexus</h1>
+
+        <div className="nav-controls">
+          <input
+            type="text"
+            placeholder="Search posts"
+            className="search-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Link to="/create" className="create-link">Create New Post</Link>
+        </div>
+
+        <div className="sort-buttons">
+          <button
+            className={sortOption === 'newest' ? 'active' : ''}
+            onClick={() => setSortOption('newest')}
+          >
+            Newest
+          </button>
+          <button
+            className={sortOption === 'popular' ? 'active' : ''}
+            onClick={() => setSortOption('popular')}
+          >
+            Most Popular
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPosts.length === 0 ? (
-          <p className="text-gray-400 col-span-full text-center mt-8">
-            No builds found. Be the first to create one!
-          </p>
-        ) : (
-          filteredPosts.map((post) => (
-            <Link to={`/post/${post.id}`} key={post.id}>
-              <div className="border rounded p-4 shadow-md hover:shadow-xl transition duration-200 bg-[#1e1e1e] text-white">
-                {post.image_url && (
-                  <img
-                    src={post.image_url}
-                    alt="Car"
-                    className="w-full h-40 object-cover rounded mb-2"
-                  />
-                )}
-                <h2 className="text-lg font-bold">{post.title}</h2>
-                <p className="text-sm text-gray-400">
-                  {post.car_year} {post.car_make} {post.car_model}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(post.created_at).toLocaleString()}
-                </p>
-                <button
-                  className="mt-2 text-blue-600 font-semibold hover:underline"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleUpvote(post.id, post.upvote);
-                  }}
-                  >
-                    {post.upvotes} Upvotes
-                  </button>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+      {filteredPosts.map((post) => (
+        <Link key={post.id} to={`/post/${post.id}`} className="post-card">
+          <h2>{post.title}</h2>
+          <p>{new Date(post.created_at).toLocaleString()}</p>
+          <p>{post.upvotes} upvotes</p>
+        </Link>
+      ))}
     </div>
   );
 }
