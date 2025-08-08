@@ -1,3 +1,4 @@
+// Home.jsx
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -5,33 +6,42 @@ import '../styles/Home.css';
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
-  const [sortOption, setSortOption] = useState('newest');
+  const [sortOption, setSortOption] = useState('newest'); // 'newest' | 'popular'
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
     fetchPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortOption]);
 
   async function fetchPosts() {
-    let query = supabase.from('posts').select('*');
+    setLoading(true);
+    setErr('');
+    try {
+      let query = supabase.from('posts').select('*');
 
-    if (sortOption === 'newest') {
-      query = query.order('created_at', { ascending: false });
-    } else if (sortOption === 'popular') {
-      query = query.order('upvotes', { ascending: false });
-    }
+      if (sortOption === 'newest') {
+        query = query.order('created_at', { ascending: false });
+      } else if (sortOption === 'popular') {
+        query = query.order('upvotes', { ascending: false });
+      }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching posts:', error.message);
-    } else {
-      setPosts(data);
+      const { data, error } = await query;
+      if (error) throw error;
+      setPosts(data || []);
+    } catch (e) {
+      console.error('Error fetching posts:', e.message);
+      setErr('Failed to load posts.');
+      setPosts([]);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const filteredPosts = posts.filter(post =>
-    post.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPosts = posts.filter((post) =>
+    (post.title || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -66,13 +76,22 @@ export default function Home() {
         </div>
       </div>
 
-      {filteredPosts.map((post) => (
-        <Link key={post.id} to={`/post/${post.id}`} className="post-card">
-          <h2>{post.title}</h2>
-          <p>{new Date(post.created_at).toLocaleString()}</p>
-          <p>{post.upvotes} upvotes</p>
-        </Link>
-      ))}
+      {loading && <p className="muted">Loading…</p>}
+      {err && <p className="error">{err}</p>}
+
+      {!loading && !err && (
+        filteredPosts.length === 0 ? (
+          <p className="no-posts">No posts found.</p>
+        ) : (
+          filteredPosts.map((post) => (
+            <Link key={post.id} to={`/post/${post.id}`} className="post-card">
+              <h2>{post.title}</h2>
+              <p>{new Date(post.created_at).toLocaleString()}</p>
+              <p>Upvotes: {post.upvotes}</p>
+            </Link>
+          ))
+        )
+      )}
     </div>
   );
 }
